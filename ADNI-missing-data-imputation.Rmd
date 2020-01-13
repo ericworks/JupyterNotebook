@@ -1,0 +1,213 @@
+---
+title: "ADNI: Missing Data Imputation"
+output: html_notebook
+---
+
+# Introduction 
+
+ADNI dataset records participants' clinical information for consecutive visits. However, there are plenty of missing entries in the dataset. Many research conducted on Alzheimer's trajectories prediction and stage classification attempts to minify the impact of missing data using specific approaches which are not prone to missing value, like the Recurrent Neural Network or Artifitial Neural Network. In addition, some classification models leave out the missing entries when training the models for simplicity assumption that the missingness in ADNI dataset is MCAR. It is stil a question whether to abandon entries is a good choice since we might find useful information in the patient's record with missing data. Furthermore, the assumption of MCAR is not validated. Leaving out the missing data may lead to a biased analysis result if MCAR is not guaranteed. A recent paper shows that with simple data imputation techniques, the classification performance can increase compared with removing the entries with missing data. 
+
+In this study,we try to figure out how imputation approaches perform when we fill in the missing data like CSF, ABeta. The baseline visit of each subject and their complete basic information, biomarkers, MRI are the variables we need to inspect. In other words, the subject with incomplete biomarkers or MRI information will not be included. The included entries will have intentionally masked value in biomarkers or MRI variables. The imputation process will start with these masked dataset, and the result is the comparison between the filled data with original data. The imputation performance will be base on the error rate **(need standarized?)** according to the missing percentage from 10% to 50%. In addition, to investigate the performance in real application, block-wise masking is then performed to compare with random masking.
+
+# Related Work
+
+
+## Imputation in ADNI dataset
+
+Raymound Y et al.[^RaymoundY2012] performed the statistical analysis on entries with missing features and with complete features to examine whether the missingness in ADNI dataset is MCAR, MAR or MNAR. In other words, they examined the statistical significance of missing ratio in different characteristic groups (e.g. smoking, age, gender etc). The result suggests that there were strong evidences (p < 0.05) in ADNI dataset to support associations between some characterstic and missing features, which indicates that the missingness in ADNI dataset is not MCAR. They also gave some sound interpretations of the association discovered in their work. The result suggests that the longitudinal missingness in ADNI dataset is not MCAR, which may result in a prediction bias if the CSF biomarker and imaging features are used as predictor and missing entries are just left out from the training set. They suggest that the CSF and imaging biomarkers may lead to biased longitudinal parameters and the approach to deal with missing data should be tailored to the target biomarker and diagnostic stage.
+
+[^RaymoundY2012]: [Predicting missing biomarker data in a longitudinal study of Alzheimer disease](https://n.neurology.org/content/78/18/1376.short) DOI: 10.1212/WNL.0b013e318253d5b3
+
+Sergio Campos et al.[^SergioCampos2015] evaluates the performance of six most commonly used imputation techniques on ADNI dataset, which includes Zero, Mean, Median, Winsorised mean, K-Nearest Neighbours and Regularised Expectation Maximisation Imputation. The performance is compared on their Pearson correlation and error rate under different missing percentage in dataset. The result shows that as missing rate increase from 10% to 50%, the Pearson correlation drops from 0.95 to 0.7, but the error rate remains the same. Most imputation techniques perform better on PET (with Relative error from 0.1 to 0.15) compared to CSF (with Relative error from 0.4 to 0.55). They also evaluate the performance on real application, the clasification accuracy. Classification trained on complete entries with imputation is compared with classification trained on the dataset of missing-entry removed. According to their results, the imputation techniques raised the overall performance on classification using  different classifiers. Their experiment is well designed and solid, providing a novel and general thought to improve classification performance on dataset with missing entries. However, there are several weakness could be improved in future work. First, only 147 visits are included in the experiment, which are then divided into two groups(AD/Normal, Normal/MCI) for classification. Second, the chosen classifiers are representative and well-generalized, but still too little to convince. Especially when it comes to the MCI-Normal group, the improvement is too subtle to convince it can generalize. More classifiers can be evaluated to support. Third, the evaluated imputation method can be extended to more efficient approaches, to further inspect how far the performance can improve.
+
+[^SergioCampos2015]: [Evaluating Imputation Techniques for Missing Data in ADNI: A patient Classification Study](https://www.researchgate.net/profile/Sergio_Campos6/publication/300331686_Evaluating_Imputation_Techniques_for_Missing_Data_in_ADNI_A_Patient_Classification_Study/links/5727655208aee491cb41432d/Evaluating-Imputation-Techniques-for-Missing-Data-in-ADNI-A-Patient-Classification-Study.pdf) DOI:
+https://doi.org/10.1007/978-3-319-25751-8_1
+
+Minh Nguyen et al.[^MinhNguyen2018] proposed a Long Short-Term Memory RNN method to address the missing data imputation quesiton. When training the network, the object is to minimise the difference between the output of each node and the ground truth value from dataset. If the feature is missing, they use the estimated output in current node as the input of the next node. The Forward filling and Model filling approaches are evaluated in their paper. To compare with baseline SVM classfier, they separated the ADNI dataset randomly into 10 splits, each with training set, development set for hyper-parameter tuning and test set for validation. Mean absolute error, multi-class area under curve are used to evaluate the classfication performance. The result shows that the proposed RNN approaches have better performance than the SVM approach. Model filling outperforms according to the mean absolute error, while Forward filling does better according to multi-class Area Under Curve and Balanced Class Accuracy. The highlight of their work is to use a RNN approach to train a network dealing with missing entries. However, the linear and model imputation can be improved and more imputation method can be compared in future work. 
+
+[^MinhNguyen2018]: [Modeling Alzheimer’s disease progression using deep recurrent neural networks](https://ieeexplore.ieee.org/document/8423955) DOI: 10.1109/PRNI.2018.8423955
+
+Kim-Han Thung et al.[^KimHanThung2014] proposed a matrix shrinkage and completion approach for classfication problems. In order to reduce the completion complexity, they first applied a multi-task sparse regression on CSF, PET and MRI combined matrix to find the most representative submatrix for feature selection and sample selection. After selection, the matrix still contains missing value. They evaluated two matrix completion algorithms, modified fixed-point continuation algorithm (which assumes low rank matrix --> fill in the matrix by minimising the trace norm plus two noise penalty terms) and regularised expectation maximisation algorithm (imputation by repeatedly estimating and filling in the missing value according to the linear regression model $x_m=\mu_m+(x_a-\mu_a)B+e$). Compared with Zero imputation and kNN as baseline approaches, the proposed framework with rEM and mFPC have relatively higher classfication accuracy and AUC in both AD/Normal and MCI/Normal groups. They also compared the imputation method with non-imputation methods, suggesting that the imputation method has a slgihtly better performance. The highlight of their work are the introduction of feature and sample selection using the multi-task sparse regression and the modified FPC methods. These pre-processing approaches reduce the classification learning duration while increase the classification performance at the same time.
+
+[^KimHanThung2014]: [Neurodegenerative disease diagnosis using incomplete multi-modality data via matrix shrinkage and completion.](https://www.ncbi.nlm.nih.gov/pubmed/24480301) DOI: 10.1016/j.neuroimage.2014.01.033
+
+## Other imputation approaches
+
+Bayesion PCA, probablistic PCA, Non-negative matrix factorization, Multiple imputation by Chained Equation, Random Forest.
+
+Variational AutoEncoder, AutoEncoding Variational Bayes, Multiple Imputation using Denoising Autoencoders 
+
+## Non-imputation approaches
+
+Garam Lee et al.[^GaramLee] proposed a multimodal deep learning method to avoid the missing data problem. They didn't perform any missing data imputation. Their idea is to use several Gated Recurrent Unit for different features, and then concatenate them together. The concatenated vectors are then feed as the later layers in the network. In the framework, the entries with missing data can be used to learn a sub-network independently if some valuable data exists.
+
+[^GaramLee]: [Predicting Alzheimer’s disease progression using multi-modal deep learning approach.](https://www.nature.com/articles/s41598-018-37769-z) doi:10.1038/s41598-018-37769-z
+
+# Experiment: Data preparation
+
+We first prepare the subjects with fullly available biomarker and MRI information.
+
+```{r}
+library(ADNIMERGE)
+library(tidyverse)
+info_bio_mri <- c("RID","VISCODE","DX","AGE","PTGENDER","PTEDUCAT","PTETHCAT","PTRACCAT","PTMARRY","APOE4","FDG","ABETA","TAU","ADAS13","MMSE")
+subjects_complete <- ADNIMERGE::adnimerge %>%
+     select(info_bio_mri) %>%
+     subset(VISCODE=="bl")%>%
+     na.omit() %>%
+     select(-c("RID","VISCODE"))
+summary(subjects_complete)
+```
+
+Then we need to change those label like ">1700" to numeric values.
+
+```{r}
+subjects_complete[subjects_complete$ABETA == ">1700",]$ABETA <- 1700
+subjects_complete$ABETA <- as.numeric(subjects_complete$ABETA)
+subjects_complete[subjects_complete$TAU == ">1300",]$TAU <- 1300
+subjects_complete$TAU <- as.numeric(subjects_complete$TAU)
+
+
+subjects_complete[, 1] <- as.numeric(as.factor(subjects_complete[, 1]))
+subjects_complete[, 3] <- as.numeric(as.factor(subjects_complete[, 3]))
+subjects_complete[, 5] <- as.numeric(as.factor(subjects_complete[, 5]))
+subjects_complete[, 6] <- as.numeric(as.factor(subjects_complete[, 6]))
+subjects_complete[, 7] <- as.numeric(as.factor(subjects_complete[, 7]))
+summary(subjects_complete)
+```
+
+# Experiment: Define helper functions
+
+Define a function that can randomly mask the biomarker data according to the input arguments. Should define the boundaries of masked value, percentage of missingness and the orignal table.
+
+```{r}
+
+gen_mask <- function(table, percentage, col_start, col_end, ...) {
+   col_num <- col_end - col_start
+   table_return <- table
+   row_num <- nrow(table)
+   table_return[, c(col_start:col_end)] <- apply (table[, c(col_start:col_end)], 2, function(x) {x[sample( c(1:row_num), row_num*percentage/col_num)] <- NA; x} )
+   return(table_return)
+}
+
+ View(gen_mask(subjects_complete, 0.5, 9, 11))
+```
+
+For this application, define a helper function that takes only an input table and percentage.
+
+```{r}
+gen_mask_app <- function(table, percentage = 0.4, ...){
+  return(gen_mask(table,percentage,9,11))
+}
+```
+
+Define a function that can calculate the imputation error rate.
+
+```{r}
+error_rate <- function(table_comp, table_imput, table_missing, ...){
+  table_comp_use <- as.data.frame(table_comp[, c(9:11)])
+  table_imput_use <- as.data.frame(table_imput[, c(9:11)])
+  table_missing_use <- as.data.frame(table_missing[, c(9:11)])
+  return(sum((table_comp_use[is.na(table_missing_use)] - table_imput_use[is.na(table_missing_use)])^2) / sum(table_comp_use[is.na(table_missing_use)]^2))
+}
+```
+
+
+# Experiment: PPCA and BPCA imputation pipeline
+
+```{r}
+library(pcaMethods)
+ppca_imputation <- function(mD, ...){
+  pc <- pca(mD, nPcs=3, method="ppca") 
+  return(completeObs(pc))
+  
+}
+```
+
+```{r}
+library(pcaMethods)
+bpca_imputation <- function(mD, ...){
+    pc <- pca(mD, nPcs=2, method="bpca") 
+    return(completeObs(pc))
+}
+```
+
+# MICE Imputation Pipeline
+
+```{r}
+library(mice)
+mice_imputation <- function(mD, ...){
+  mc <- mice(mD)
+  return(complete(mc))
+}
+
+```
+
+# Experiment: Random Forest Imputation 
+```{r}
+library(missForest)
+rf_imputation <- function(md, ...){
+  md1 <- data.matrix(md)  
+  return(missForest(md1, verbose = FALSE)$ximp)
+}
+```
+
+# Experiment: Non Negative Linear Model
+
+```{r}
+
+library(NNLM)
+nnmf_imputation <- function(mD, ...){
+  
+  # impute using NMF
+  mD1 <- data.matrix(mD)
+  system.time(mD1.nmf <- nnmf(mD1, 2))
+  return( with(mD1.nmf, W %*% H))
+}
+
+```
+
+```{r}
+iterate_calc <- function(func, start, end, step, ...){
+  mD <- gen_mask_app(subjects_complete, start)
+  sumVal <- 0
+  for(count in 1:50){
+    sumVal <- sumVal + error_rate(subjects_complete, func(mD), mD)
+  }
+  currentVal <- sumVal/50
+  if(start + step <= end){
+    followingVec <- iterate_calc(func, start+step, end, step)
+    
+  }else{
+    return(c(currentVal))
+    
+  }
+  return(prepend(followingVec,currentVal))
+}
+```
+
+```{r}
+ppca_result <- iterate_calc(ppca_imputation,0.05,0.51,0.1)
+bpca_result <- iterate_calc(ppca_imputation,0.05,0.51,0.1)
+mice_result <- iterate_calc(ppca_imputation,0.05,0.51,0.1)
+rf_result <- iterate_calc(ppca_imputation,0.05,0.51,0.1)
+nnmf_result <- iterate_calc(ppca_imputation,0.05,0.51,0.1)
+```
+
+# Result comparison 
+
+```{r}
+total_vec <- c(ppca_result, bpca_result, mice_result, rf_result, nnmf_result)
+results<- matrix(total_vec, nrow = 5,ncol = 5)
+
+plot(NULL, xlim = c(0.1,0.5), ylim = c(0.1, 0.32), xlab = 'missingness', ylab = 'error rate');
+lines(seq(0.1,0.5,by=0.1), ppca_result, col = 'firebrick1');
+lines(seq(0.1,0.5,by=0.1), bpca_result, col = 'orange');
+lines(seq(0.1,0.5,by=0.1), mice_result, col = 'chartreuse3');
+lines(seq(0.1,0.5,by=0.1), nnmf_result, col = 'deepskyblue4');
+lines(seq(0.1,0.5,by=0.1), rf_result, col = 'orange');
+legend('topright', bty = 'n', lwd = 1, lty = c(1,1,2,1,1),
+legend = c('ppca', 'bpca', 'mice', 'nnmf', 'rf'),
+col = c('firebrick1', 'orange', 'orange', 'chartreuse3', 'deepskyblue4'))
+
+```
